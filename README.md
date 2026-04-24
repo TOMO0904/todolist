@@ -50,37 +50,6 @@ src/main/java/com/example/demo/
 ```
 
 ---
-
-## 🚀 ローカル環境でのセットアップ
-
-### 前提条件
-- Java 21 以上
-- Maven 3.9 以上
-- MySQL (または内蔵H2データベース)
-
-### 1. リポジトリのクローン
-```bash
-git clone [https://github.com/TOMO0904/web-application.git](https://github.com/TOMO0904/web-application.git)
-cd web-application
-```
-
-### 2. 環境変数の設定
-
-`src/main/resources/application-local.properties.example` をコピーし、DB接続情報を設定します。
-```bash
-export RDS_URL=jdbc:mysql://localhost:3306/your_database
-export RDS_USERNAME=your_username
-export RDS_PASSWORD=your_password
-```
-
-### 3. アプリケーションの起動
-```bash
-./mvnw spring-boot:run
-```
-
-※テストデータ付きで起動する場合は、プロファイルを指定してください。
-`./mvnw spring-boot:run -Dspring-boot.run.profiles=dev`
-
 ## 📝 API エンドポイント一例
 
 * `GET /api/tasks` : タスク一覧取得
