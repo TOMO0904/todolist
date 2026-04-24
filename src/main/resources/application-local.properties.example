@@ -1,0 +1,11 @@
+# ===============================
+# ローカル開発用 DB接続設定テンプレート
+# ===============================
+# このファイルを「application-local.properties」にコピーして値を入力してください。
+# application-local.properties は .gitignore で除外されるため、GitHubには公開されません。
+#
+# Spring Boot 起動時に --spring.profiles.active=local を指定してください。
+#
+RDS_URL=jdbc:mysql://your-rds-endpoint:3306/your-database
+RDS_USERNAME=admin
+RDS_PASSWORD=your-password-here

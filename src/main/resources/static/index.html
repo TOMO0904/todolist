@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <title>ゲーム制作 タスク管理ツリー</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+            background-color: #f9f9f9;
+        }
+
+        .controls {
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .member-controls {
+            border-left: 5px solid #FF9800;
+        }
+
+        .task-controls {
+            border-left: 5px solid #4CAF50;
+        }
+
+        .task-card {
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-top: 5px;
+            border-radius: 5px;
+            border-left: 5px solid #4CAF50;
+        }
+
+        .child-task {
+            border-left: 5px solid #2196F3;
+            margin-top: 5px;
+        }
+
+        /* 担当者プルダウンのデザインを少し目立たせる */
+        .assignee-select {
+            background-color: #e3f2fd;
+            padding: 2px;
+            border: 1px solid #90caf9;
+            border-radius: 4px;
+            font-size: 0.9em;
+            margin-left: 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🎮 ゲーム制作 タスク管理ボード</h1>
+
+    <div class="controls member-controls">
+        <h3 style="margin-top: 0;">👤 チームメンバー登録</h3>
+        <input type="text" id="memberName" placeholder="メンバー名">
+        <button onclick="addMember()">メンバーを追加</button>
+    </div>
+
+    <div class="controls task-controls">
+        <h3 style="margin-top: 0;">📝 タスク登録</h3>
+        <input type="text" id="taskTitle" placeholder="タスク名" style="width: 200px;">
+        <input type="number" id="taskHours" placeholder="工数" min="0" style="width: 70px;">
+        <select id="parentTaskSelect">
+            <option value="">(親タスクなし - 大項目)</option>
+        </select>
+
+        <button onclick="addTask()">タスクを追加</button>
+    </div>
+
+    <h3 style="margin-top: 20px; color: #333;">🏃 進行中・未定のタスク（ツリー）</h3>
+    <div id="taskList"></div>
+
+    <h3 style="margin-top: 40px; color: #666;">✅ 完了済みのタスク</h3>
+    <div id="completedTaskList"></div>
+
+    <script>
+        let globalMembers = [];
+
+        async function fetchMembers() {
+            try {
+                const response = await fetch('/api/members');
+                globalMembers = await response.json();
+            } catch (e) { console.warn("メンバー取得失敗", e); }
+        }
+
+        async function addMember() {
+            const nameInput = document.getElementById('memberName').value;
+            if (!nameInput) return alert("メンバー名を入力してください");
+            await fetch('/api/members', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: nameInput })
+            });
+            document.getElementById('memberName').value = '';
+            await fetchMembers();
+            fetchTasks();
+        }
+
+        async function fetchTasks() {
+            try {
+                const response = await fetch('/api/tasks');
+                const tasks = await response.json();
+
+                const taskMap = {};
+                const roots = [];
+                const completedTasks = [];
+
+                tasks.forEach(task => {
+                    if (task.status === 'DONE') {
+                        completedTasks.push(task);
+                    } else {
+                        task.children = [];
+                        taskMap[task.id] = task;
+                    }
+                });
+
+                tasks.forEach(task => {
+                    if (task.status !== 'DONE') {
+                        if (task.parentTaskId && taskMap[task.parentTaskId]) {
+                            taskMap[task.parentTaskId].children.push(task);
+                        } else {
+                            roots.push(task);
+                        }
+                    }
+                });
+
+                const listDiv = document.getElementById('taskList');
+                listDiv.innerHTML = '';
+                roots.forEach(rootTask => {
+                    listDiv.appendChild(createTaskElement(rootTask, 0, []));
+                });
+
+                const completedDiv = document.getElementById('completedTaskList');
+                completedDiv.innerHTML = '';
+                completedTasks.forEach(task => {
+                    completedDiv.appendChild(createCompletedTaskElement(task));
+                });
+
+                updateParentSelect(tasks.filter(t => t.status !== 'DONE'));
+            } catch (e) { console.warn("タスク取得失敗", e); }
+        }
+        // 子タスクの工数を再帰的に計算する関数
+        function calculateTotalEffort(taskNode) {
+            // 子がなければ、自分自身の工数を返す
+            if (!taskNode.children || taskNode.children.length === 0) {
+                return taskNode.estimatedHours ? parseInt(taskNode.estimatedHours) : 0;
+            }
+            // 子がいれば、すべての子の工数を足し合わせる
+            let total = 0;
+            taskNode.children.forEach(child => {
+                total += calculateTotalEffort(child);
+            });
+            return total;
+        }
+
+
+        function createTaskElement(task, depth, rootAssignees) {
+            const div = document.createElement('div');
+            div.className = depth === 0 ? 'task-card' : 'task-card child-task';
+            div.style.marginLeft = `${depth * 20}px`;
+
+            let currentAssignees = task.assignee && task.assignee !== "未定" ? task.assignee.split(',') : [];
+
+            if (depth === 0) {
+                rootAssignees = currentAssignees;
+            }
+
+            // --- HTMLの組み立て開始 ---
+            let html = `<strong>${task.title}</strong><br>`;
+
+            // 【1. 担当者のUI（既存のものをそのまま維持）】
+            if (depth === 0) {
+                html += `<span style="font-size: 0.85em; color: #333; background: #fff3e0; padding: 2px 5px; border-radius: 3px;">👥 プロジェクトメンバー: `;
+                if (currentAssignees.length === 0) {
+                    html += `なし`;
+                } else {
+                    currentAssignees.forEach(member => {
+                        html += `👤${member} <button onclick="removeRootAssignee(${task.id}, '${member}', '${task.assignee}', '${task.title}', ${task.estimatedHours}, ${task.parentTaskId || null}, '${task.status}')" style="font-size:0.7em; cursor:pointer; background:none; border:none; color:red;">✖</button> `;
+                    });
+                }
+                html += `</span>`;
+
+                let addOptions = `<option value="">+ メンバー追加</option>`;
+                globalMembers.forEach(m => {
+                    if (!currentAssignees.includes(m.name)) {
+                        addOptions += `<option value="${m.name}">${m.name}</option>`;
+                    }
+                });
+                html += `<select onchange="addRootAssignee(${task.id}, this.value, '${task.assignee}', '${task.title}', ${task.estimatedHours}, ${task.parentTaskId || null}, '${task.status}')" style="margin-left: 10px; font-size: 0.8em;">${addOptions}</select>`;
+
+            } else {
+                let assigneeOptions = `<option value="未定">👤 未定 (取る)</option>`;
+                rootAssignees.forEach(member => {
+                    const isSelected = (task.assignee === member) ? 'selected' : '';
+                    assigneeOptions += `<option value="${member}" ${isSelected}>👤 ${member}</option>`;
+                });
+
+                // ★変更：親プロジェクトに誰もいない場合は、プルダウンに「disabled」を付けてグレーアウト（操作不可）にする
+                const disabledAttr = rootAssignees.length === 0
+                    ? 'disabled style="background-color: #f5f5f5; color: #aaa; border-color: #ddd; cursor: not-allowed;" title="先に親プロジェクトにメンバーを追加してください"'
+                    : '';
+
+                html += `<select class="assignee-select" ${disabledAttr} onchange="updateTaskAssignee(${task.id}, this.value, '${task.title}', ${task.estimatedHours}, ${task.parentTaskId || null}, '${task.status}')">${assigneeOptions}</select>`;
+            }
+            // 【2. 工数とボタンのUI】
+            const hasChildren = task.children && task.children.length > 0;
+
+            // ★変更：追加した関数(calculateTotalEffort)を呼び出して、下層の工数を全部足し合わせる！
+            const displayHours = hasChildren ? calculateTotalEffort(task) : task.estimatedHours;
+
+            const isDisabled = hasChildren ? 'disabled' : '';
+            const inputStyle = hasChildren ? 'background-color: #e9ecef; color: #666; cursor: not-allowed;' : '';
+
+            html += `
+                <span style="color: gray; font-size: 0.9em; margin-left: 10px;">(工数: 
+                    <input type="number" 
+                           value="${displayHours}" 
+                           ${isDisabled} min="0"
+                           style="width: 50px; padding: 2px; font-weight: bold; border: 1px solid #ccc; border-radius: 4px; ${inputStyle}" 
+                           onchange="updateTaskHours(${task.id}, this.value, '${task.title}', ${task.parentTaskId || null}, '${task.status}', '${task.assignee}')"> h)
+                </span>
+                
+                <button onclick="updateTaskStatus(${task.id}, 'DONE', '${task.title}', ${task.estimatedHours}, ${task.parentTaskId || null}, '${task.assignee}')" style="margin-left: 15px; color: white; background-color: #4CAF50; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">✅ 完了</button>
+                <button onclick="deleteTask(${task.id})" style="margin-left: 10px; color: red;">削除</button>
+            `;
+
+            div.innerHTML = html;
+
+            if (task.children && task.children.length > 0) {
+                task.children.forEach(child => {
+                    div.appendChild(createTaskElement(child, depth + 1, rootAssignees));
+                });
+            }
+            return div;
+        }
+
+        function createCompletedTaskElement(task) {
+            const div = document.createElement('div');
+            div.className = 'task-card';
+            div.style.borderLeft = '5px solid #9e9e9e';
+            div.style.backgroundColor = '#f5f5f5';
+            div.innerHTML = `
+                <strong style="text-decoration: line-through; color: #757575;">${task.title}</strong>
+                <span style="color: gray; font-size: 0.9em; margin-left: 10px;">担当: 👤 ${task.assignee} (工数: ${task.estimatedHours}h)</span>
+                <button onclick="updateTaskStatus(${task.id}, 'TODO', '${task.title}', ${task.estimatedHours}, ${task.parentTaskId || null}, '${task.assignee}')" style="margin-left: 15px; font-size: 0.8em;">↩️ 未完了に戻す</button>
+                <button onclick="deleteTask(${task.id})" style="margin-left: 10px; color: red;">削除</button>
+            `;
+            return div;
+        }
+
+        // --- API系関数 ---
+        async function addRootAssignee(id, newMember, currentAssigneesStr, title, hours, parentId, status) {
+            if (!newMember) return;
+            let assignees = currentAssigneesStr && currentAssigneesStr !== "未定" ? currentAssigneesStr.split(',') : [];
+            if (!assignees.includes(newMember)) assignees.push(newMember);
+            await updateTaskApi(id, title, assignees.join(','), status, hours, parentId);
+        }
+
+        async function removeRootAssignee(id, memberToRemove, currentAssigneesStr, title, hours, parentId, status) {
+            let assignees = currentAssigneesStr && currentAssigneesStr !== "未定" ? currentAssigneesStr.split(',') : [];
+            assignees = assignees.filter(m => m !== memberToRemove);
+            let newAssigneeStr = assignees.length > 0 ? assignees.join(',') : '未定';
+            await updateTaskApi(id, title, newAssigneeStr, status, hours, parentId);
+        }
+
+        function updateParentSelect(tasks) {
+            const select = document.getElementById('parentTaskSelect');
+            select.innerHTML = '<option value="">(親タスクなし - 大項目)</option>';
+            tasks.forEach(task => { select.innerHTML += `<option value="${task.id}">${task.title}</option>`; });
+        }
+
+        async function addTask() {
+            const titleInput = document.getElementById('taskTitle').value;
+            const hoursInput = document.getElementById('taskHours').value;
+            const parentIdInput = document.getElementById('parentTaskSelect').value;
+            if (!titleInput) return alert("タスク名を入力してください");
+            await fetch('/api/tasks', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: titleInput, description: "", assignee: "未定", status: "TODO", estimatedHours: hoursInput ? parseInt(hoursInput) : 0, parentTaskId: parentIdInput ? parseInt(parentIdInput) : null })
+            });
+            document.getElementById('taskTitle').value = '';
+            document.getElementById('taskHours').value = '';
+            fetchTasks();
+        }
+
+        async function updateTaskAssignee(id, newAssignee, title, hours, parentId, status) { await updateTaskApi(id, title, newAssignee, status, hours, parentId); }
+        async function updateTaskHours(id, newHours, title, parentId, status, assignee) { await updateTaskApi(id, title, assignee, status, newHours ? parseInt(newHours) : 0, parentId); }
+        async function updateTaskStatus(id, newStatus, title, hours, parentId, assignee) { await updateTaskApi(id, title, assignee, newStatus, hours, parentId); }
+
+        async function updateTaskApi(id, title, assignee, status, hours, parentId) {
+            await fetch('/api/tasks/' + id, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: title, description: "", assignee: assignee, status: status, estimatedHours: hours, parentTaskId: parentId })
+            });
+            fetchTasks();
+        }
+
+        async function deleteTask(id) {
+            if (!confirm("本当にこのタスクを削除しますか？")) return;
+            await fetch('/api/tasks/' + id, { method: 'DELETE' });
+            fetchTasks();
+        }
+
+        async function init() {
+            await fetchMembers();
+            await fetchTasks();
+        }
+        init(); 
+    </script>
+</body>
+
+</html>
