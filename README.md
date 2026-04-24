@@ -1,17 +1,29 @@
 # 🎮 ゲーム制作 タスク管理ボード
 
-チームでのゲーム制作を支援するWebベースのタスク管理ツールです。  
-タスクのツリー構造管理、メンバーアサイン、工数管理ができます。
+[![Java 21](https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk&logoColor=white)](#)
+[![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.3.5-6DB33F?logo=spring-boot&logoColor=white)](#)
+[![MySQL](https://img.shields.io/badge/MySQL-4479A1?logo=mysql&logoColor=white)](#)
+[![AWS RDS](https://img.shields.io/badge/AWS-RDS-FF9900?logo=amazonaws&logoColor=white)](#)
 
-## ✨ 機能一覧
+チームでのゲーム制作を支援するための、Webベースのタスク・工数管理アプリケーションです。
 
-| 機能 | 説明 |
-|------|------|
-| タスク管理 | タスクの作成・編集・削除・完了管理 |
-| ツリー構造 | 親子関係を持つタスクの階層管理 |
-| メンバー管理 | チームメンバーの登録・タスクへのアサイン |
-| 工数管理 | タスクごとの見積もり工数の設定・子タスクの自動集計 |
-| プロジェクト管理 | プロジェクト単位での工数管理（再帰的集計） |
+> ⚠️ **公開状況について**
+> 本アプリケーションはAWS環境（EC2, RDS等）にてデプロイ・公開していましたが、現在はインフラ維持コストの観点から**クラウドリソースを停止し、非公開**としています。
+> ソースコードおよびローカル環境での実行手順は本リポジトリにて公開しております。
+
+## 💡 開発の背景と目的
+ゲーム制作などの複雑なプロジェクトにおいて、「親タスク（例：キャラクター実装）」と「子タスク（例：モデリング、モーション、エフェクト）」の階層関係を可視化し、チーム全体の作業見積もりを正確に把握するために開発しました。
+
+## ✨ 主な機能と技術的な工夫
+
+* **ツリー構造によるタスクの階層管理**
+  親タスク・子タスクの無制限のネスト（親子関係）をデータベース上で表現し、直感的なタスク分解を可能にしました。
+* **再帰的アルゴリズムを用いた工数自動集計**
+  `ProjectNodeService` にて、最下層のサブタスクに設定された見積もり工数を、親タスク・ルートプロジェクトへと**再帰的にさかのぼって自動計算するロジック**を実装しました。
+* **RESTful APIの設計とSpring Bootの活用**
+  フロントエンドとバックエンドを分離し、JSON形式でやり取りするモダンなAPIサーバーとして構築しています。
+* **AWS RDSを用いたデータベース運用**
+  ローカルのH2データベースでの開発を経て、本番環境ではAWS RDS (MySQL) へ接続して運用を行いました。環境変数でDB接続先を切り替える設計にしています。
 
 ## 🛠 技術スタック
 
@@ -22,85 +34,55 @@
 | データベース | MySQL (AWS RDS) / H2 (開発用) |
 | ORM | Spring Data JPA |
 | テンプレート | Thymeleaf |
-| ビルド | Maven |
+| ビルドツール | Maven |
 
-## 📁 プロジェクト構成
-
-```
+## 📁 プロジェクト構成（主要部）
+```text
 src/main/java/com/example/demo/
-├── DemoApplication.java          # アプリケーション起点
 ├── controller/
-│   ├── TaskController.java       # タスクAPI（CRUD）
-│   ├── MemberController.java     # メンバーAPI
-│   └── ProjectNodeController.java # プロジェクト工数API
+│   ├── TaskController.java        # タスクCRUD用API
+│   └── ProjectNodeController.java # 工数計算・ツリー構造API
 ├── entity/
-│   ├── Task.java                 # タスクエンティティ
-│   ├── Member.java               # メンバーエンティティ
-│   └── ProjectNode.java          # プロジェクトツリー（再帰構造）
-├── repository/
-│   ├── TaskRepository.java
-│   ├── MemberRepository.java
-│   └── ProjectNodeRepository.java
+│   ├── Task.java                  # タスク定義
+│   └── ProjectNode.java           # 再帰的なツリー構造を表現するエンティティ
 └── service/
-    ├── ProjectNodeService.java   # プロジェクト工数の再帰計算
-    └── DataLoader.java           # 開発用テストデータ
+    └── ProjectNodeService.java    # プロジェクト工数の再帰計算ロジック（コア機能）
 ```
 
-## 🚀 セットアップ
+---
+
+## 🚀 ローカル環境でのセットアップ
 
 ### 前提条件
-
 - Java 21 以上
 - Maven 3.9 以上
-- MySQL（AWS RDS またはローカル）
+- MySQL (または内蔵H2データベース)
 
-### 1. リポジトリをクローン
-
+### 1. リポジトリのクローン
 ```bash
-git clone https://github.com/TOMO0904/web-application.git
+git clone [https://github.com/TOMO0904/web-application.git](https://github.com/TOMO0904/web-application.git)
 cd web-application
 ```
 
-### 2. 環境変数を設定
+### 2. 環境変数の設定
 
-`src/main/resources/application-local.properties.example` を参考に、以下の環境変数を設定してください：
-
+`src/main/resources/application-local.properties.example` をコピーし、DB接続情報を設定します。
 ```bash
 export RDS_URL=jdbc:mysql://localhost:3306/your_database
 export RDS_USERNAME=your_username
 export RDS_PASSWORD=your_password
 ```
 
-### 3. アプリケーションを起動
-
+### 3. アプリケーションの起動
 ```bash
 ./mvnw spring-boot:run
 ```
 
-ブラウザで http://localhost:8080 にアクセスしてください。
+※テストデータ付きで起動する場合は、プロファイルを指定してください。
+`./mvnw spring-boot:run -Dspring-boot.run.profiles=dev`
 
-### 開発用テストデータ
+## 📝 API エンドポイント一例
 
-テストデータ付きで起動する場合：
-
-```bash
-./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
-```
-
-## 📝 API エンドポイント
-
-| メソッド | エンドポイント | 説明 |
-|---------|---------------|------|
-| GET | `/api/tasks` | タスク一覧を取得 |
-| POST | `/api/tasks` | タスクを作成 |
-| PUT | `/api/tasks/{id}` | タスクを更新 |
-| DELETE | `/api/tasks/{id}` | タスクを削除 |
-| GET | `/api/members` | メンバー一覧を取得 |
-| POST | `/api/members` | メンバーを登録 |
-| GET | `/api/projects` | ルートプロジェクト一覧を取得 |
-| POST | `/api/projects` | プロジェクトを作成 |
-| GET | `/api/projects/{id}/effort` | プロジェクトの総工数を取得 |
-
-## 📄 ライセンス
-
-[MIT License](LICENSE)
+* `GET /api/tasks` : タスク一覧取得
+* `POST /api/tasks` : タスク作成
+* `GET /api/projects/{id}/effort` : プロジェクトの総工数（再帰的集計結果）を取得
