@@ -1,57 +1,39 @@
-# 🎮 ゲーム制作 タスク管理ボード
+[English](README.md) | [日本語](README.ja.md)
+
+# Game Project Task Board (Spring Boot)
 
 [![Java 21](https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk&logoColor=white)](#)
 [![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.3.5-6DB33F?logo=spring-boot&logoColor=white)](#)
 [![MySQL](https://img.shields.io/badge/MySQL-4479A1?logo=mysql&logoColor=white)](#)
 [![AWS RDS](https://img.shields.io/badge/AWS-RDS-FF9900?logo=amazonaws&logoColor=white)](#)
 
-チームでのゲーム制作を支援するための、Webベースのタスク・工数管理アプリケーションです。
+A web-based task and effort-management backend for team game development.
 
-> ⚠️ **公開状況について**
-> 本アプリケーションはAWS環境（EC2, RDS等）にてデプロイ・公開していましたが、現在はインフラ維持コストの観点から**クラウドリソースを停止し、非公開**としています。
-> ソースコードおよびローカル環境での実行手順は本リポジトリにて公開しております。
+> **Status:** the app was once deployed on AWS (EC2 / RDS). The cloud resources have been shut down to save cost, so there is no live demo. Source code and local run instructions are here.
 
-## 💡 開発の背景と目的
-ゲーム制作などの複雑なプロジェクトにおいて、「親タスク（例：キャラクター実装）」と「子タスク（例：モデリング、モーション、エフェクト）」の階層関係を可視化し、チーム全体の作業見積もりを正確に把握するために開発しました。
+## Problem
 
-## ✨ 主な機能と技術的な工夫
+In projects like game development, a parent task ("implement character") breaks into child tasks (modelling, motion, effects). Seeing the whole hierarchy and an accurate total estimate is hard in flat to-do lists.
 
-* **ツリー構造によるタスクの階層管理**
-  親タスク・子タスクの無制限のネスト（親子関係）をデータベース上で表現し、直感的なタスク分解を可能にしました。
-* **再帰的アルゴリズムを用いた工数自動集計**
-  `ProjectNodeService` にて、最下層のサブタスクに設定された見積もり工数を、親タスク・ルートプロジェクトへと**再帰的にさかのぼって自動計算するロジック**を実装しました。
-* **RESTful APIの設計とSpring Bootの活用**
-  フロントエンドとバックエンドを分離し、JSON形式でやり取りするモダンなAPIサーバーとして構築しています。
-* **AWS RDSを用いたデータベース運用**
-  ローカルのH2データベースでの開発を経て、本番環境ではAWS RDS (MySQL) へ接続して運用を行いました。環境変数でDB接続先を切り替える設計にしています。
+## Solution
 
-## 🛠 技術スタック
+- **Tree-structured tasks:** unlimited parent/child nesting stored in the database.
+- **Recursive effort roll-up:** `ProjectNodeService` sums estimates from the leaf subtasks up through parents to the root project.
+- **REST API** returning JSON, with a separate lightweight HTML/JavaScript front end.
+- **Switchable database:** H2 for local development, MySQL on AWS RDS in production, selected through environment variables.
 
-| カテゴリ | 技術 |
-|---------|------|
-| バックエンド | Java 21, Spring Boot 3.3.5 |
-| フロントエンド | HTML, JavaScript (Vanilla) |
-| データベース | MySQL (AWS RDS) / H2 (開発用) |
-| ORM | Spring Data JPA |
-| テンプレート | Thymeleaf |
-| ビルドツール | Maven |
+Example endpoints: `GET /api/tasks`, `POST /api/tasks`, `GET /api/projects/{id}/effort`.
 
-## 📁 プロジェクト構成（主要部）
-```text
-src/main/java/com/example/demo/
-├── controller/
-│   ├── TaskController.java        # タスクCRUD用API
-│   └── ProjectNodeController.java # 工数計算・ツリー構造API
-├── entity/
-│   ├── Task.java                  # タスク定義
-│   └── ProjectNode.java           # 再帰的なツリー構造を表現するエンティティ
-└── service/
-    └── ProjectNodeService.java    # プロジェクト工数の再帰計算ロジック（コア機能）
+## Tech stack
+
+Java 21 · Spring Boot 3.3.5 · Spring Data JPA · Thymeleaf · MySQL (AWS RDS) / H2 · Maven · vanilla JavaScript
+
+## Run locally
+
+```bash
+./mvnw spring-boot:run
 ```
 
----
-## 📝 API エンドポイント一例
+For a MySQL database, copy `src/main/resources/application-local.properties.example` to `application-local.properties` and fill in your own connection details (that file must not be committed).
 
-* `GET /api/tasks` : タスク一覧取得
-* `POST /api/tasks` : タスク作成
-* `GET /api/projects/{id}/effort` : プロジェクトの総工数（再帰的集計結果）を取得
+Japanese README: [README.ja.md](README.ja.md).
