@@ -1,4 +1,4 @@
-[English](README.md) | [日本語](README.ja.md)
+**English** | [日本語](README.ja.md)
 
 # Game Project Task Board (Spring Boot)
 
@@ -36,4 +36,4 @@ Java 21 · Spring Boot 3.3.5 · Spring Data JPA · Thymeleaf · MySQL (AWS RDS) 
 
 For a MySQL database, copy `src/main/resources/application-local.properties.example` to `application-local.properties` and fill in your own connection details (that file must not be committed).
 
-Japanese README: [README.ja.md](README.ja.md).
+More detailed notes (Japanese): [docs/DETAILS.ja.md](docs/DETAILS.ja.md).
